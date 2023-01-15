@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/dop251/goja"
 	"io/fs"
 	"log"
 	"net/http"
@@ -11,6 +10,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/dop251/goja"
 )
 
 var scripts []Script
@@ -30,7 +31,7 @@ func LoadScripts() {
 	root := "./scripts/"
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if strings.HasSuffix(GetFilename(path), ".js") {
-			scripts = append(scripts, *InitialScript(path))
+			scripts = append(scripts, InitialScript(path))
 		}
 		return nil
 	})
@@ -106,7 +107,7 @@ func MatchMetadata(pattern string, s string) []string {
 	return matchStrings
 }
 
-func InitialScript(path string) *Script {
+func InitialScript(path string) Script {
 	content := ReadScript(path)
 	startMatched, err := regexp.MatchString("// ==BocchiScript==", content)
 	CheckErr(err)
@@ -131,9 +132,10 @@ func InitialScript(path string) *Script {
 		}
 		script.VM = GetVM(name, path)
 		InjectFunctions(&script)
-		return &script
+		log.Printf("[INFo] LOoaded script: %s", name)
+		return script
 	}
-	return &Script{}
+	return Script{}
 }
 
 func MatchURL(matches []string, url string) bool {

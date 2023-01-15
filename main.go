@@ -2,12 +2,13 @@ package main
 
 import (
 	"errors"
-	"github.com/telanflow/mps"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/telanflow/mps"
 )
 
 // A simple mitm proxy server
@@ -17,21 +18,25 @@ func main() {
 	LoadScripts()
 	mitmHandler, err := mps.NewMitmHandlerWithCertFile(proxy.Ctx, "./cert/ca.crt", "./cert/ca.key")
 	if err != nil {
-		log.Panic(err)
+		CheckErr(err)
 	}
 	proxy.HandleConnect = mitmHandler
 
 	proxy.UseFunc(func(req *http.Request, ctx *mps.Context) (*http.Response, error) {
-		log.Printf("[INFO] middleware -- %s %s", req.Method, req.URL)
 		if req.Method != http.MethodConnect {
+			log.Printf("[INFO] %s %s", req.Method, req.URL)
 			handledReq := HandleRequest(*req)
+			if handledReq.Method == "" {
+				log.Println("[WARN] the request is empty")
+				err := errors.New("the request is empty")
+				return nil, err
+			}
 			resp, err := ctx.Next(&handledReq)
 			CheckErr(err)
 			handledResp := HandleResponse(*resp)
 			return &handledResp, nil
 		}
-		resp, err := ctx.Next(req)
-		return resp, err
+		return nil, mps.MethodNotSupportErr
 	})
 
 	// Started proxy server
@@ -40,14 +45,14 @@ func main() {
 		Handler: proxy,
 	}
 	go func() {
-		log.Printf("MitmProxy started listen: http://%s", srv.Addr)
+		log.Printf("[INFO] Bocchi server started listen: http://%s", srv.Addr)
 		err := srv.ListenAndServe()
 		if errors.Is(err, http.ErrServerClosed) {
 			return
 		}
 		if err != nil {
 			quitSignChan <- syscall.SIGKILL
-			log.Fatalf("MitmProxy start fail: %v", err)
+			log.Fatalf("[FATAL] Bocchi server start fail: %v", err)
 		}
 	}()
 
@@ -56,5 +61,5 @@ func main() {
 
 	<-quitSignChan
 	_ = srv.Close()
-	log.Fatal("MitmProxy server stop!")
+	log.Fatal("[INFO] Bocchi server stop!")
 }

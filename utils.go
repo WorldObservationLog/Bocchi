@@ -7,7 +7,7 @@ import (
 
 func CheckErr(err error) {
 	if err != nil {
-		log.Println("[ERROR]" + fmt.Sprintf("[ERROR] %v", err))
+		log.Fatal(fmt.Sprintf("[ERROR] %v", err))
 	}
 }
 
